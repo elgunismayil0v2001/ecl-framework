@@ -15,6 +15,8 @@ FROM performance p
 JOIN loans l USING (loan_id);
 
 -- Modelling sample: performing observations only, with a 12-month forward default target.
+-- Observations in the last 12 months of the data are dropped: their 12-month window is not fully
+-- observed (right-censored), so a "no default" label would be unreliable.
 CREATE OR REPLACE TABLE panel_target AS
 SELECT
     *,
@@ -25,4 +27,5 @@ SELECT
         THEN 1 ELSE 0
     END AS default_12m
 FROM panel
-WHERE in_default = 0;
+WHERE in_default = 0
+  AND report_month <= CAST((SELECT MAX(report_month) FROM panel) - INTERVAL 12 MONTH AS DATE);

@@ -7,6 +7,7 @@ Portfolio, products, intended use (provisioning and illustrative capital), what 
 
 ## 2. Data
 Sources, sample period, exclusions, data quality checks, default definition (90+ DPD), observation and performance windows.
+Observations in the last 12 months of the data are excluded because their 12-month outcome window is right-censored.
 
 ## 3. PD model
 Methodology (WoE scorecard, ML benchmark), variable selection, monotonicity, performance (Gini, KS, calibration), lifetime PD term structure.

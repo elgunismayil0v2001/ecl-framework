@@ -4,6 +4,7 @@ pandas
 scipy
 scikit-learn
 duckdb
+matplotlib
 pytest
 pytest-cov
 ruff

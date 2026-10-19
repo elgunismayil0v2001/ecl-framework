@@ -58,15 +58,18 @@ data/       download instructions only, no raw data in git
   Fallback: Home Credit Default Risk (Kaggle).
 - Macro data: unemployment, house price index, GDP from FRED.
 - Put raw files in `data/raw/`. They are ignored by git.
-- Column names in `sql/01_schema.sql` are simplified. Map them to the official Freddie Mac
-  user guide before loading.
+- Download and loading instructions: `data/README.md`. Column layouts are in `src/freddie_schema.py`;
+  verify them against the user guide of your file version.
 
 ## How to run
 
 ```bash
-pip install -r requirements.txt
-python -m src.data      # builds the DuckDB database from sql/*.sql
-pytest                  # tests
+make install
+make test
+make data-synthetic     # smoke test of the whole pipeline on synthetic data
+make data-freddie       # real data: see data/README.md for downloads
+make quality            # data quality report
+make eda                # charts in reports/figures/
 ```
 
 ## Key assumptions (document and justify each in docs/model_documentation.md)
