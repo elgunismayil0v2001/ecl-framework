@@ -1,0 +1,11 @@
+# Dependencies needed to run tests and linting (used by CI). Heavy ML libraries stay in requirements.txt.
+numpy
+pandas
+scipy
+scikit-learn
+duckdb
+pytest
+pytest-cov
+ruff
+sqlfluff
+pre-commit

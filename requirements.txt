@@ -1,0 +1,10 @@
+duckdb
+pandas
+numpy
+scipy
+scikit-learn
+lightgbm
+catboost
+shap
+matplotlib
+pytest
