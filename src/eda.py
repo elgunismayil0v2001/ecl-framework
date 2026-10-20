@@ -16,7 +16,7 @@ LTV_EDGES = [60, 70, 80, 90, 95]
 
 def band_labels(edges):
     labels = [f"<{edges[0]}"]
-    for a, b in zip(edges[:-1], edges[1:]):
+    for a, b in zip(edges[:-1], edges[1:], strict=True):
         labels.append(f"{a}-{b - 1}")
     labels.append(f"{edges[-1]}+")
     return labels

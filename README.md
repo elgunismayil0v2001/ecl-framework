@@ -45,7 +45,7 @@ flowchart TD
 
 ```
 sql/        DuckDB scripts, run in order (01 to 06)
-src/        Python modules: data, pd_model, lgd, ead, staging, ecl, rwa, validation
+src/        Python modules: data loading, woe, pd_model, benchmark, pd_pipeline, gates, lgd, ead, ecl, rwa, validation
 tests/      unit tests (RWA formula, validation metrics)
 docs/       model_documentation.md (written like a bank model development document)
 notebooks/  EDA and results
@@ -70,11 +70,16 @@ make data-synthetic     # smoke test of the whole pipeline on synthetic data
 make data-freddie       # real data: see data/README.md for downloads
 make quality            # data quality report
 make eda                # charts in reports/figures/
+make pd                 # PD scorecard and benchmark, validation gates, writes scores
 ```
 
 ## Key assumptions (document and justify each in docs/model_documentation.md)
 
 - Default: 90+ days past due.
+- PD target: default within the next 12 months. Observations in the last 12 months of the data are excluded
+  from training (their outcome is not fully observed) but are scored for staging and ECL.
+- PD split: train on early months, validate on the last months (out-of-time), with a 12-month gap between
+  them so outcome windows do not overlap. This needs about 3 or more origination years of data.
 - Stage 2 (SICR): 30 DPD backstop plus a relative and absolute PD increase rule. Thresholds are
   assumptions and must be tested for sensitivity.
 - Scenario weights for base, upside and downside.
@@ -110,4 +115,4 @@ make sql-lint    # sqlfluff (DuckDB dialect)
 - CI (`.github/workflows/ci.yml`) runs lint and tests on Python 3.11 and 3.12 for every push and pull
   request. Pushing a tag like `v0.1.0` runs the release workflow.
 
-![CI](https://github.com/YOUR_USER/ifrs9-ecl-framework/actions/workflows/ci.yml/badge.svg)
+[![CI](https://github.com/elgunismayil0v2001/ecl-framework/actions/workflows/ci.yml/badge.svg)](https://github.com/elgunismayil0v2001/ecl-framework/actions/workflows/ci.yml)

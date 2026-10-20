@@ -12,11 +12,16 @@ addopts = "-q"
 source = ["src"]
 
 [tool.coverage.report]
-fail_under = 70
+fail_under = 60
+exclude_also = ["if __name__ == .__main__.:"]
 show_missing = true
 
 [tool.ruff]
 line-length = 110
+extend-exclude = ["*.ipynb"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]

@@ -3,3 +3,9 @@ data/raw/
 __pycache__/
 .ipynb_checkpoints/
 .venv/
+.DS_Store
+.coverage
+coverage.xml
+htmlcov/
+.pytest_cache/
+.ruff_cache/

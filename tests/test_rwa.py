@@ -1,6 +1,7 @@
 import numpy as np
-from src.rwa import capital_requirement, rwa, expected_loss
-from src.validation import psi, ks
+
+from src.rwa import capital_requirement, expected_loss, rwa
+from src.validation import ks, psi
 
 
 def test_capital_requirement_positive_and_increasing_in_pd():
