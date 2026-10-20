@@ -53,10 +53,37 @@ decile PD vs default rate at least 0.90, PSI train vs OOT at most 0.25.
 ### 3.6 Calibration and lifetime PD
 If the calibration gate fails because of the economic cycle, apply a logit intercept shift estimated on a
 calibration window inside the training data (never on the OOT sample). Lifetime PD term structure: see
-section 6.
+section 3.7.
+
+### 3.7 Lifetime PD (discrete-time hazard model)
+Person-period data: one row per performing loan-month, target = default in the next month (`sql/08_hazard_data.sql`).
+Loans that prepay or are liquidated leave the sample (prepayment is treated as censoring).
+Model: logistic regression on log age, age, credit score, LTV, DTI, rate, months in arrears and macro variables
+(unemployment, house price growth, GDP growth). Coefficients are reported per standard deviation and checked for
+sign (unemployment positive, house price and GDP growth negative).
+Projection: age increases one month per step, loan characteristics are constant, arrears are cured after the
+first month, hazards are zero after contractual maturity. Lifetime PD = 1 - product of (1 - hazard).
+Macro scenarios (illustrative assumptions, relative to the last observed values): shock ramps up over 12 months,
+holds for 12 months, reverts over 24 months. Downside: unemployment +3.0 pp, house price growth -10 pp, GDP
+growth -4 pp. Upside: unemployment -1.0 pp, house price growth +3 pp, GDP growth +1 pp. Base: values held flat.
+Scenario weights: base 60%, upside 10%, downside 30% (assumption).
+Results (cumulative PD at 12, 60 and 120 months by scenario): TBD. Curves: `reports/figures/lifetime_pd_curves.png`.
 
 ## 4. LGD and EAD models
-Methodology, assumptions, limitations.
+### 4.1 LGD
+Sample: resolved defaults with a realised loss (zero balance codes 02, 03, 09, 15, 16), `sql/07_lgd_data.sql`.
+Realised LGD = actual loss / UPB at removal, clipped to [0, 1].
+Model: fractional logit (weighted logistic regression) on LTV at origination, credit score, loan age,
+house price growth and unemployment at resolution, DTI and rate. Predictions are between 0 and 1.
+Limitations: cured loans and unresolved defaults are not in the sample (workout bias); the sign convention of
+the loss field must be checked against the user guide; no downturn adjustment or regulatory floor is applied
+(the model has a `floor` parameter if one is needed).
+Results (average realised vs predicted LGD by LTV band): TBD. Table: `reports/tables/lgd_by_ltv_band.csv`.
+
+### 4.2 EAD
+EAD at month t is the expected balance at the start of month t from the amortisation schedule, re-amortised
+each month, with a constant prepayment rate (default 6% CPR, assumption). Prepayment is not modelled as a
+competing risk in the PD hazards. Portfolio path: `reports/tables/ead_portfolio_path.csv`.
 
 ## 5. Staging
 Stage 1, 2, 3 criteria, SICR thresholds, justification and sensitivity.

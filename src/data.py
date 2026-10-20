@@ -41,7 +41,7 @@ def load_synthetic(con, n_loans=300, months=36, seed=11):
            FROM df_loans"""
     )
     con.execute(
-        """INSERT INTO performance
+        """INSERT INTO performance (loan_id, report_month, current_upb, dpd_months, zero_bal_code)
            SELECT loan_id, CAST(report_month AS DATE), current_upb, dpd_months, zero_bal_code
            FROM df_perf"""
     )
@@ -52,6 +52,12 @@ def load_synthetic(con, n_loans=300, months=36, seed=11):
 def build_panel(con):
     run_sql(con, "02_panel.sql")
     run_sql(con, "03_features.sql")
+
+
+def build_lifetime_data(con):
+    """Tables for the lifetime PD (hazard) model and the LGD model."""
+    run_sql(con, "07_lgd_data.sql")
+    run_sql(con, "08_hazard_data.sql")
 
 
 def main(argv=None):
@@ -77,6 +83,7 @@ def main(argv=None):
     if args.fred_dir:
         print("macro rows:", load_macro(con, args.fred_dir, lag_months=args.lag_months))
     build_panel(con)
+    build_lifetime_data(con)
 
     report = run_checks(con)
     print(format_report(report))

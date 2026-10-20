@@ -44,8 +44,8 @@ flowchart TD
 ## Repo structure
 
 ```
-sql/        DuckDB scripts, run in order (01 to 06)
-src/        Python modules: data loading, woe, pd_model, benchmark, pd_pipeline, gates, lgd, ead, ecl, rwa, validation
+sql/        DuckDB scripts, run in order (01 to 08)
+src/        Python modules: data loading, woe, pd_model, benchmark, pd_pipeline, lifetime_pd, lgd, ead, ecl, rwa, gates, validation
 tests/      unit tests (RWA formula, validation metrics)
 docs/       model_documentation.md (written like a bank model development document)
 notebooks/  EDA and results
@@ -71,6 +71,7 @@ make data-freddie       # real data: see data/README.md for downloads
 make quality            # data quality report
 make eda                # charts in reports/figures/
 make pd                 # PD scorecard and benchmark, validation gates, writes scores
+make lifetime           # lifetime PD by scenario, LGD model, EAD path
 ```
 
 ## Key assumptions (document and justify each in docs/model_documentation.md)
@@ -82,7 +83,13 @@ make pd                 # PD scorecard and benchmark, validation gates, writes s
   them so outcome windows do not overlap. This needs about 3 or more origination years of data.
 - Stage 2 (SICR): 30 DPD backstop plus a relative and absolute PD increase rule. Thresholds are
   assumptions and must be tested for sensitivity.
-- Scenario weights for base, upside and downside.
+- Scenario weights for base, upside and downside. Scenario shocks (`src/lifetime_pd.py`) are illustrative
+  assumptions relative to the last observed macro values, not official forecasts.
+- Lifetime PD: discrete-time hazard model; loan characteristics are held constant in the projection and
+  prepayment is treated as censoring.
+- EAD: amortisation schedule with a constant prepayment rate (default 6% CPR, an assumption).
+- LGD: fractional logit on resolved defaults with a realised loss, clipped to [0, 1]. Cured loans and
+  unresolved defaults are not represented (workout bias).
 - Capital for the ratio is an assumption, shown as a sensitivity table, not the real capital of a bank.
 - IRB parameters (asset correlation, PD floor, confidence level) follow the Basel framework; verify
   them against the current text before reporting numbers.

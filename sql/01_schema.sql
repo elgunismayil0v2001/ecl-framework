@@ -18,7 +18,9 @@ CREATE OR REPLACE TABLE performance (
     report_month   DATE,
     current_upb    DOUBLE,
     dpd_months     INTEGER,   -- months delinquent
-    zero_bal_code  VARCHAR    -- liquidation / prepayment flag
+    zero_bal_code  VARCHAR,   -- liquidation / prepayment flag
+    zero_bal_removal_upb DOUBLE,  -- UPB when the loan left the pool (LGD denominator)
+    actual_loss    DOUBLE     -- realised loss; positive = loss, negative = gain (check the user guide)
 );
 
 CREATE OR REPLACE TABLE macro (

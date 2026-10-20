@@ -74,7 +74,8 @@ def load_freddie(con, orig_glob, perf_glob):
 
     con.execute(
         """INSERT INTO performance
-           SELECT loan_id, report_month, current_upb, dpd_months, zero_bal_code
+           SELECT loan_id, report_month, current_upb, dpd_months, zero_bal_code,
+                  zero_bal_removal_upb, actual_loss
            FROM (
                SELECT
                    loan_sequence_number AS loan_id,
@@ -85,7 +86,9 @@ def load_freddie(con, orig_glob, perf_glob):
                        WHEN current_loan_delinquency_status = 'RA' THEN 3
                        ELSE TRY_CAST(current_loan_delinquency_status AS INTEGER)
                    END AS dpd_months,
-                   zero_balance_code AS zero_bal_code
+                   zero_balance_code AS zero_bal_code,
+                   TRY_CAST(zero_balance_removal_upb AS DOUBLE) AS zero_bal_removal_upb,
+                   TRY_CAST(actual_loss_calculation AS DOUBLE) AS actual_loss
                FROM raw_perf
                WHERE loan_sequence_number IS NOT NULL
                  AND monthly_reporting_period IS NOT NULL

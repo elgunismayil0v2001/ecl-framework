@@ -4,7 +4,7 @@ PERF ?= data/raw/sample_svcg_*.txt
 FRED ?= data/raw/fred
 LAG ?= 0
 
-.PHONY: install test lint format sql-lint data-synthetic data-freddie quality eda pd clean
+.PHONY: install test lint format sql-lint data-synthetic data-freddie quality eda pd lifetime clean
 
 install:
 	pip install -r requirements.txt -r requirements-dev.txt
@@ -36,6 +36,9 @@ eda:
 
 pd:
 	python -m src.pd_pipeline --db $(DB)
+
+lifetime:
+	python -m src.lifetime_pipeline --db $(DB)
 
 clean:
 	rm -rf .pytest_cache .ruff_cache .coverage coverage.xml
