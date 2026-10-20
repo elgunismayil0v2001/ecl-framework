@@ -54,10 +54,20 @@ def build_panel(con):
     run_sql(con, "03_features.sql")
 
 
-def build_lifetime_data(con):
-    """Tables for the lifetime PD (hazard) model and the LGD model."""
+def build_lgd_data(con):
+    """LGD sample. Needs loans, performance and macro only."""
     run_sql(con, "07_lgd_data.sql")
+
+
+def build_hazard_data(con):
+    """Hazard model sample. Needs the panel, so run build_panel first."""
     run_sql(con, "08_hazard_data.sql")
+
+
+def build_lifetime_data(con):
+    """Tables for the LGD model and the lifetime PD (hazard) model. Run build_panel first."""
+    build_lgd_data(con)
+    build_hazard_data(con)
 
 
 def main(argv=None):

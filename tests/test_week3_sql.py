@@ -72,7 +72,7 @@ def test_lgd_data_uses_resolved_defaults_and_clips_to_unit_interval():
         con = duckdb.connect(":memory:")
         data.apply_schema(con)
         load_freddie(con, os.path.join(d, "sample_orig_*.txt"), os.path.join(d, "sample_svcg_*.txt"))
-        data.build_lifetime_data(con)
+        data.build_lgd_data(con)
     lgd = dict(con.execute("SELECT loan_id, lgd FROM lgd_data").fetchall())
     assert set(lgd) == {"A", "B", "C"}
     assert abs(lgd["A"] - 0.2) < 1e-9
