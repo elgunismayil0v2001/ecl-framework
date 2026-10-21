@@ -44,8 +44,9 @@ flowchart TD
 ## Repo structure
 
 ```
-sql/        DuckDB scripts, run in order (01 to 08)
-src/        Python modules: data loading, woe, pd_model, benchmark, pd_pipeline, lifetime_pd, lgd, ead, ecl, rwa, gates, validation
+sql/        DuckDB scripts (01 to 08); 04 and 05 are run by the pipelines
+src/        Python modules: data loading, woe, pd_model, benchmark, pd_pipeline, lifetime_pd, lgd, ead,
+            staging, ecl, ecl_portfolio, ecl_pipeline, rwa, capital, gates, validation
 tests/      unit tests (RWA formula, validation metrics)
 docs/       model_documentation.md (written like a bank model development document)
 notebooks/  EDA and results
@@ -72,6 +73,7 @@ make quality            # data quality report
 make eda                # charts in reports/figures/
 make pd                 # PD scorecard and benchmark, validation gates, writes scores
 make lifetime           # lifetime PD by scenario, LGD model, EAD path
+make ecl                # staging, ECL by scenario, RWA, stress test (run make pd first)
 ```
 
 ## Key assumptions (document and justify each in docs/model_documentation.md)
@@ -90,6 +92,14 @@ make lifetime           # lifetime PD by scenario, LGD model, EAD path
 - EAD: amortisation schedule with a constant prepayment rate (default 6% CPR, an assumption).
 - LGD: fractional logit on resolved defaults with a realised loss, clipped to [0, 1]. Cured loans and
   unresolved defaults are not represented (workout bias).
+- Reporting date: the last month in the data. The portfolio is all loans with a balance at that date.
+- ECL: Stage 1 uses the next 12 months, Stage 2 the remaining contractual term, both discounted at the
+  contractual rate. Stage 3 ECL is LGD times EAD (no discounting). LGD is evaluated per scenario with the
+  macro values 12 months ahead.
+- RWA: IRB formula for residential mortgages with the 12-month PD of each scenario. Defaulted exposures are
+  excluded from RWA.
+- Stress test: extra provisions (downside ECL minus base ECL) reduce capital one for one, with no profit,
+  tax or management actions. Starting capital is 12% of base RWA, an assumption.
 - Capital for the ratio is an assumption, shown as a sensitivity table, not the real capital of a bank.
 - IRB parameters (asset correlation, PD floor, confidence level) follow the Basel framework; verify
   them against the current text before reporting numbers.

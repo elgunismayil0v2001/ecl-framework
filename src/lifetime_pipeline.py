@@ -39,6 +39,23 @@ LTV_EDGES = [60, 70, 80, 90, 95]
 MIN_LGD_ROWS = 200
 
 
+def load_hazard_sample(con, max_rows=1_000_000, seed=42):
+    """Hazard observations, sampled with a reservoir if there are more than `max_rows`."""
+    n_obs = con.execute("SELECT COUNT(*) FROM hazard_obs").fetchone()[0]
+    if n_obs > max_rows:
+        sample = f"reservoir({int(max_rows)} ROWS) REPEATABLE ({int(seed)})"
+        sql = f"SELECT * FROM hazard_obs USING SAMPLE {sample}"
+    else:
+        sql = "SELECT * FROM hazard_obs"
+    return con.execute(sql).df()
+
+
+def load_last_macro(con):
+    """Last month with all three macro variables, or None if the macro table is empty."""
+    row = con.execute(LAST_MACRO_SQL).fetchone()
+    return None if row is None else dict(zip(MACRO_COLS, row, strict=True))
+
+
 def _plot_curves(curves, path):
     import matplotlib
 
@@ -63,24 +80,16 @@ def run_lifetime(con, outdir="reports", horizon=120, max_rows=1_000_000, max_loa
     (out / "figures").mkdir(parents=True, exist_ok=True)
     notes = []
 
-    n_obs = con.execute("SELECT COUNT(*) FROM hazard_obs").fetchone()[0]
-    if n_obs > max_rows:
-        sample = f"reservoir({int(max_rows)} ROWS) REPEATABLE ({int(seed)})"
-        sql = f"SELECT * FROM hazard_obs USING SAMPLE {sample}"
-    else:
-        sql = "SELECT * FROM hazard_obs"
-    hazard_df = con.execute(sql).df()
+    hazard_df = load_hazard_sample(con, max_rows, seed)
     model = HazardModel().fit(hazard_df)
     loans = con.execute(LOANS_NOW_SQL).df()
     if len(loans) > max_loans:
         loans = loans.sample(max_loans, random_state=seed)
 
-    row = con.execute(LAST_MACRO_SQL).fetchone()
-    if row is None:
+    last_macro = load_last_macro(con)
+    if last_macro is None:
         notes.append("No macro data: all scenarios use the same flat macro values")
         last_macro = dict.fromkeys(MACRO_COLS, 0.0)
-    else:
-        last_macro = dict(zip(MACRO_COLS, row, strict=True))
     if not any(c in model.features_ for c in MACRO_COLS):
         notes.append("Hazard model has no macro features, so scenario curves will be identical")
 

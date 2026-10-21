@@ -86,13 +86,36 @@ each month, with a constant prepayment rate (default 6% CPR, assumption). Prepay
 competing risk in the PD hazards. Portfolio path: `reports/tables/ead_portfolio_path.csv`.
 
 ## 5. Staging
-Stage 1, 2, 3 criteria, SICR thresholds, justification and sensitivity.
+Stage 3: 90+ days past due. Stage 2: 30+ days past due (backstop) or a significant increase in credit risk
+(SICR): 12-month PD at least 2.0 times the PD at the first observation of the loan and at least 0.5 pp higher.
+Stage 1: all other loans. `pd_12m_orig` is the PD at the first observation of each loan, used as a proxy for
+PD at initial recognition. Thresholds are assumptions. Sensitivity of the Stage 2 share to the thresholds
+(relative 1.5 to 3.0, absolute 0.25 to 1.0 pp): `reports/tables/sicr_sensitivity.csv`.
+Chosen thresholds and justification: TBD. Stage shares at the reporting date: TBD.
 
 ## 6. ECL calculation
-Formula, discounting, horizons, macro scenarios and weights, results by stage and scenario.
+ECL = LGD x sum over months t of marginal PD(t) x EAD(t) x discount factor(t).
+Horizon: 12 months for Stage 1, remaining contractual term for Stage 2. Stage 3: ECL = LGD x EAD.
+PD: lifetime hazard model (section 3.7) under three macro scenarios. EAD: amortisation schedule with 6% CPR
+(section 4.2). LGD: model of section 4.1, evaluated with each scenario's macro values 12 months ahead.
+Discount rate: contractual rate of each loan (proxy for the effective interest rate).
+Probability weights: base 60%, upside 10%, downside 30% (assumption). Sensitivity of total ECL to the weights:
+`reports/tables/ecl_weight_sensitivity.csv`.
+Results (EAD, ECL and coverage by stage, per scenario and weighted): `reports/tables/ecl_coverage_by_stage.csv`. TBD.
+Checks run by the pipeline: coverage rises from Stage 1 to Stage 3, downside ECL above base above upside,
+ECL between zero and LGD x EAD for every loan, weights sum to one.
 
 ## 7. Capital adequacy
-IRB RWA formula and parameters, assumed capital, capital ratio, stress test, comparison of IRB expected loss with IFRS 9 ECL.
+RWA: Basel IRB formula for residential mortgages (asset correlation 0.15, confidence level 99.9%, PD floor
+0.05%), with the 12-month PD of each scenario and the model LGD. Defaulted exposures are excluded.
+Capital is an assumption: a starting capital ratio (12%) on base RWA. Stress test: extra provisions
+(downside ECL minus base ECL) reduce capital one for one; no profit, tax, dividends or management actions.
+Expected loss (IRB) is compared with IFRS 9 ECL on performing exposures. The two differ because IFRS 9 is
+point-in-time and forward-looking, while IRB parameters are meant to be through-the-cycle (PD) and downturn (LGD),
+and because our PD and LGD are the same model estimates in both calculations.
+Results: `reports/tables/capital_by_scenario.csv`, `el_vs_ecl.csv`, `stress_test.csv`, `capital_sensitivity.csv`. TBD.
+Limitations: no downturn LGD or regulatory LGD floor, no defaulted-exposure RWA, no other risk types, no
+off-balance-sheet exposures, parameters must be checked against the current Basel / CRR text.
 
 ## 8. Validation and monitoring
 Out-of-time testing, backtesting, PSI, stability, sensitivity analysis.

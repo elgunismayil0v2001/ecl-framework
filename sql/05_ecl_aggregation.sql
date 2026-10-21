@@ -17,7 +17,8 @@ SELECT
     e.report_month,
     e.stage,
     SUM(e.ecl * w.weight) AS ecl_weighted,
-    SUM(e.ead * w.weight) AS ead_weighted
+    SUM(e.ead * w.weight) AS ead_weighted,
+    SUM(e.ecl * w.weight) / NULLIF(SUM(e.ead * w.weight), 0) AS coverage_weighted
 FROM ecl_by_scenario e
 JOIN scenario_weights w USING (scenario)
 GROUP BY e.report_month, e.stage;
