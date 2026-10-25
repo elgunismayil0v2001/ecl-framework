@@ -65,11 +65,11 @@ decile PD vs default rate at least 0.90, PSI train vs OOT at most 0.25.
 <!-- PD_VALIDATION:START -->
 | metric | benchmark | scorecard | gate |
 |---|---|---|---|
-| calibration_rel_error | 0.3222 | 0.1723 | <= 0.15 |
-| gini | 0.4796 | 0.5045 | >= 0.3 |
-| ks | 0.3451 | 0.3520 | >= 0.2 |
-| psi_train_vs_test | 0.5314 | 0.1200 | <= 0.25 |
-| rank_order_corr | 0.9394 | 0.8788 | >= 0.9 |
+| calibration_rel_error | 0.3448 | 0.1723 | <= 0.15 |
+| gini | 0.4810 | 0.5045 | >= 0.3 |
+| ks | 0.3545 | 0.3520 | >= 0.2 |
+| psi_train_vs_test | 0.5863 | 0.1200 | <= 0.25 |
+| rank_order_corr | 0.9879 | 0.8788 | >= 0.9 |
 <!-- PD_VALIDATION:END -->
 
 ### 3.6 Calibration and lifetime PD
@@ -100,9 +100,9 @@ Curves: `reports/figures/lifetime_pd_curves.png`.
 <!-- LIFETIME:START -->
 | scenario | 12 months | 60 months | 120 months |
 |---|---|---|---|
-| base | 3.50 | 12.51 | 16.80 |
-| downside | 5.31 | 25.12 | 28.54 |
-| upside | 3.17 | 10.54 | 14.97 |
+| base | 3.49 | 12.39 | 16.55 |
+| downside | 5.32 | 25.19 | 28.49 |
+| upside | 3.15 | 10.41 | 14.71 |
 
 Cumulative PD in %.
 <!-- LIFETIME:END -->
@@ -147,10 +147,10 @@ Coverage by stage, per scenario and probability-weighted (`reports/tables/ecl_co
 <!-- ECL_COVERAGE:START -->
 | scenario | Stage 1 | Stage 2 | Stage 3 |
 |---|---|---|---|
-| base | 0.311 | 6.548 | 12.551 |
-| downside | 0.819 | 12.343 | 20.252 |
-| upside | 0.232 | 5.386 | 10.643 |
-| weighted | 0.455 | 8.170 | 14.671 |
+| base | 0.310 | 6.537 | 12.551 |
+| downside | 0.822 | 12.356 | 20.252 |
+| upside | 0.231 | 5.374 | 10.643 |
+| weighted | 0.456 | 8.166 | 14.671 |
 
 Coverage = ECL / EAD in %.
 <!-- ECL_COVERAGE:END -->
@@ -170,18 +170,18 @@ Tables: `reports/tables/capital_by_scenario.csv`, `el_vs_ecl.csv`, `stress_test.
 <!-- CAPITAL:START -->
 | scenario | ead_total | rwa | rwa_density | el_irb | ecl_total |
 |---|---|---|---|---|---|
-| base | 912,384,355.7500 | 227,154,015.8668 | 0.2559 | 3,772,433.8325 | 6,805,108.0022 |
-| upside | 912,384,355.7500 | 179,369,795.3675 | 0.2021 | 2,889,278.0258 | 5,472,473.1574 |
-| downside | 912,384,355.7500 | 476,660,487.1421 | 0.5371 | 9,231,705.5694 | 14,016,404.5046 |
+| base | 912,384,355.7500 | 226,591,445.1600 | 0.2553 | 3,764,204.7935 | 6,795,826.7522 |
+| upside | 912,384,355.7500 | 178,736,291.2884 | 0.2014 | 2,878,900.4840 | 5,461,285.1247 |
+| downside | 912,384,355.7500 | 477,181,026.5392 | 0.5376 | 9,266,414.5661 | 14,048,203.1176 |
 
 Stress test by assumed starting capital ratio:
 
 | capital_ratio_start | capital_ratio_after | change_pp |
 |---|---|---|
-| 0.0800 | 0.0230 | -5.7005 |
-| 0.1000 | 0.0325 | -6.7473 |
-| 0.1200 | 0.0421 | -7.7942 |
-| 0.1500 | 0.0564 | -9.3646 |
+| 0.0800 | 0.0228 | -5.7210 |
+| 0.1000 | 0.0323 | -6.7713 |
+| 0.1200 | 0.0418 | -7.8216 |
+| 0.1500 | 0.0560 | -9.3970 |
 <!-- CAPITAL:END -->
 Limitations: no downturn LGD or regulatory LGD floor, no defaulted-exposure RWA, no other risk types, no
 off-balance-sheet exposures, parameters must be checked against the current Basel / CRR text.

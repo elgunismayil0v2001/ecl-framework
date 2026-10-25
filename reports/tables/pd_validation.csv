@@ -1,11 +1,11 @@
 model,metric,value,rule,passed
 scorecard,gini,0.5045355180360138,>= 0.3,True
 scorecard,ks,0.3519957102695821,>= 0.2,True
-scorecard,calibration_rel_error,0.17231241019603827,<= 0.15,False
+scorecard,calibration_rel_error,0.1723124101960396,<= 0.15,False
 scorecard,rank_order_corr,0.8787878787878788,>= 0.9,False
 scorecard,psi_train_vs_test,0.11997255953509099,<= 0.25,True
-benchmark,gini,0.47962799238512877,>= 0.3,True
-benchmark,ks,0.3450979040924293,>= 0.2,True
-benchmark,calibration_rel_error,0.32216752466675713,<= 0.15,False
-benchmark,rank_order_corr,0.9393939393939393,>= 0.9,True
-benchmark,psi_train_vs_test,0.5313524969475164,<= 0.25,False
+benchmark,gini,0.4809987301092047,>= 0.3,True
+benchmark,ks,0.3544650560633252,>= 0.2,True
+benchmark,calibration_rel_error,0.34482095254784295,<= 0.15,False
+benchmark,rank_order_corr,0.9878787878787878,>= 0.9,True
+benchmark,psi_train_vs_test,0.586272830470554,<= 0.25,False
