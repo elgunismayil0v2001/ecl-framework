@@ -1,0 +1,2 @@
+n_train,n_oot,train_default_rate,oot_default_rate,train_first_period,train_last_period,oot_first_period,oot_last_period,gap_periods,features
+450081,24836,0.03797094300803633,0.0353116443871799,2017-02-01 00:00:00,2022-06-01 00:00:00,2023-07-01 00:00:00,2023-12-01 00:00:00,12,"credit_score, orig_ltv, orig_dti, orig_rate, balance_ratio, months_on_book, dpd_months, max_dpd_last_12m"

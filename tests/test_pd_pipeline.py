@@ -59,3 +59,25 @@ def test_default_scorecard_features_exclude_macro_variables():
     )
     assert not {"unemployment", "hpi_yoy", "gdp_yoy"} & set(result["features"])
     assert "credit_score" in result["features"]
+
+
+def test_run_pd_models_treats_seasoning_features_as_non_monotone_by_default():
+    rng = np.random.default_rng(3)
+    n = 40_000
+    age = rng.uniform(0, 100, n)
+    p = 1 / (1 + np.exp(-(-4.0 + 0.06 * np.minimum(age, 45) - 0.05 * np.maximum(age - 45, 0))))
+    df = pd.DataFrame(
+        {
+            "t": np.repeat(np.arange(10), n // 10),
+            "months_on_book": age,
+            "credit_score": rng.normal(700, 50, n),
+        }
+    )
+    df["y"] = rng.binomial(1, p)
+    result = run_pd_models(
+        df, time_col="t", target_col="y", oot_periods=2, gap_periods=0, use_benchmark=False
+    )
+    bins = result["scorecard"].bin_tables()
+    rates = bins[bins["feature"] == "months_on_book"]["bad_rate"].to_numpy()
+    assert rates.argmax() not in (0, len(rates) - 1)
+    assert result["split"]["train_first_period"] == "0"

@@ -34,6 +34,8 @@ MACRO_FEATURES = ["unemployment", "hpi_yoy", "gdp_yoy"]
 # the model memorise the cycle (an overfit to a few dozen months), and they make the score drift over time.
 # The economy enters through the lifetime PD model and the scenarios.
 SCORECARD_FEATURES = [f for f in DEFAULT_FEATURES if f not in MACRO_FEATURES]
+# Default risk rises and then falls with loan age (seasoning), so these bins are not forced to be monotone.
+SEASONING_FEATURES = ("months_on_book", "balance_ratio")
 
 
 def usable_features(df, features):
@@ -55,15 +57,18 @@ def run_pd_models(
     train, oot = time_based_split(df, time_col, oot_periods, gap_periods)
     feats = usable_features(train, features or SCORECARD_FEATURES)
 
-    scorecard = Scorecard(feats, **(scorecard_params or {})).fit(train, target_col)
+    params = {"non_monotonic_features": SEASONING_FEATURES, **(scorecard_params or {})}
+    scorecard = Scorecard(feats, **params).fit(train, target_col)
     result = {
         "split": {
             "n_train": len(train),
             "n_oot": len(oot),
             "train_default_rate": float(train[target_col].mean()),
             "oot_default_rate": float(oot[target_col].mean()),
+            "train_first_period": str(train[time_col].min()),
             "train_last_period": str(train[time_col].max()),
             "oot_first_period": str(oot[time_col].min()),
+            "oot_last_period": str(oot[time_col].max()),
         },
         "features": feats,
         "scorecard": scorecard,
@@ -166,6 +171,11 @@ def main(argv=None):
         return 2
     print("Split:", result["split"])
     print("Features used:", result["features"])
+    split_row = {
+        **result["split"],
+        "gap_periods": args.gap_periods,
+        "features": ", ".join(result["features"]),
+    }
 
     scorecard = result["scorecard"]
     out = Path(args.outdir)
@@ -182,6 +192,7 @@ def main(argv=None):
         if metric != "all_passed"
     ]
     pd.DataFrame(rows).to_csv(out / "tables" / "pd_validation.csv", index=False)
+    pd.DataFrame([split_row]).to_csv(out / "tables" / "pd_split.csv", index=False)
     for name, report in result["reports"].items():
         print(format_gate_report(name, report))
     if result["benchmark"] is not None:

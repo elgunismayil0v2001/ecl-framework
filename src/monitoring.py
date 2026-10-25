@@ -68,14 +68,24 @@ def add_quarter(df, col="report_month", out_col="quarter"):
     return df.assign(**{out_col: pd.to_datetime(df[col]).dt.to_period("Q").astype(str)})
 
 
-def backtest_by_period(df, pd_col, target_col, period_col):
-    """Predicted vs observed defaults per period, with a z-score and a traffic light."""
+def backtest_by_period(df, pd_col, target_col, period_col, default_correlation=0.01):
+    """Predicted vs observed defaults per period, with z-scores and a traffic light.
+
+    z_binomial treats every observation as independent. Defaults are correlated (they share the economy), so
+    the variance is raised with an equicorrelation term: Var = sum s_i^2 + rho * ((sum s_i)^2 - sum s_i^2)
+    with s_i = sqrt(p_i (1 - p_i)) and rho = `default_correlation` (an assumption; 0.005 to 0.03 is common
+    for mortgages). The flag uses the adjusted z. Use one observation per loan and period (for example
+    quarter-end snapshots), otherwise repeated rows of the same loan inflate n.
+    """
     rows = []
     for period, g in df.groupby(period_col):
         p = g[pd_col].to_numpy(dtype=float)
         expected = float(p.sum())
         observed = float(g[target_col].sum())
-        variance = float((p * (1.0 - p)).sum())
+        sigma = np.sqrt(p * (1.0 - p))
+        var_independent = float((sigma**2).sum())
+        variance = var_independent + default_correlation * (float(sigma.sum()) ** 2 - var_independent)
+        z_binomial = (observed - expected) / np.sqrt(var_independent) if var_independent > 0 else np.nan
         z = (observed - expected) / np.sqrt(variance) if variance > 0 else np.nan
         rows.append(
             {
@@ -85,6 +95,8 @@ def backtest_by_period(df, pd_col, target_col, period_col):
                 "observed_rate": observed / len(g),
                 "expected_defaults": expected,
                 "observed_defaults": observed,
+                "rel_error": observed / expected - 1.0 if expected > 0 else np.nan,
+                "z_binomial": z_binomial,
                 "z": z,
                 "flag": "n/a" if np.isnan(z) else z_flag(z),
             }

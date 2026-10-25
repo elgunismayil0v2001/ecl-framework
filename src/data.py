@@ -70,6 +70,23 @@ def build_lifetime_data(con):
     build_hazard_data(con)
 
 
+def write_data_source(con, label, outdir="reports"):
+    """Record what data the results come from, so `make report` can state it next to the results."""
+    import pandas as pd
+
+    loans, rows, first, last = con.execute(
+        """SELECT (SELECT COUNT(*) FROM loans), COUNT(*), MIN(report_month), MAX(report_month)
+           FROM performance"""
+    ).fetchone()
+    table = pd.DataFrame(
+        [{"source": label, "loans": loans, "loan_months": rows, "first_month": first, "last_month": last}]
+    )
+    path = Path(outdir) / "tables"
+    path.mkdir(parents=True, exist_ok=True)
+    table.to_csv(path / "data_source.csv", index=False)
+    return table
+
+
 def main(argv=None):
     from src.data_quality import format_report, run_checks
 
@@ -80,6 +97,8 @@ def main(argv=None):
     ap.add_argument("--perf", help="glob(s), comma separated, for Freddie Mac performance files")
     ap.add_argument("--fred-dir", help="folder with UNRATE.csv, CSUSHPINSA.csv, GDPC1.csv")
     ap.add_argument("--lag-months", type=int, default=0, help="macro lag to avoid look-ahead")
+    ap.add_argument("--source", default="unspecified", help="label of the data source, shown in the reports")
+    ap.add_argument("--outdir", default="reports")
     args = ap.parse_args(argv)
 
     if not args.synthetic:
@@ -100,6 +119,7 @@ def main(argv=None):
         print("macro rows:", load_macro(con, args.fred_dir, lag_months=args.lag_months))
     build_panel(con)
     build_lifetime_data(con)
+    write_data_source(con, args.source, args.outdir)
 
     report = run_checks(con)
     print(format_report(report))

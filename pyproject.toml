@@ -1,6 +1,9 @@
 [project]
 name = "ifrs9-ecl-framework"
 version = "0.1.0"
+description = "IFRS 9 expected credit loss and capital adequacy framework for residential mortgages"
+readme = "README.md"
+license = { text = "MIT" }
 requires-python = ">=3.11"
 
 [tool.pytest.ini_options]

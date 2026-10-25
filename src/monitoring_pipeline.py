@@ -83,7 +83,9 @@ def run_monitoring(con, outdir="reports", ref_periods=12, recent_periods=6, max_
 
     scores = con.execute(SCORES_SQL).df()
     psi_table = psi_over_time(scores, "pd_12m", "report_month", ref_periods)
-    backtest = backtest_by_period(add_quarter(scores), "pd_12m", "default_12m", "quarter")
+    # one row per loan and quarter (quarter-end months), so the loans are not counted three times
+    snapshots = scores[pd.to_datetime(scores["report_month"]).dt.month % 3 == 0]
+    backtest = backtest_by_period(add_quarter(snapshots), "pd_12m", "default_12m", "quarter")
     psi_table.to_csv(out / "tables" / "monitoring_psi_by_month.csv", index=False)
     backtest.to_csv(out / "tables" / "monitoring_backtest_by_quarter.csv", index=False)
     if len(psi_table):

@@ -125,7 +125,117 @@ def render_capital(tables):
     )
 
 
+def render_iv_table(tables):
+    t = _read(tables, "pd_iv_table.csv")
+    if t is None:
+        return PLACEHOLDER
+    t = t.assign(note=t["note"].fillna(""), selected=t["selected"].map({True: "yes", False: "no"}))
+    return markdown_table(t, fmt="{:.3f}")
+
+
+def render_lgd_bands(tables):
+    t = _read(tables, "lgd_by_ltv_band.csv")
+    if t is None:
+        return PLACEHOLDER
+    t = t.assign(n=t["n"].astype(int))
+    note = "Bands of LTV at origination (%). LGD as a fraction of the exposure."
+    return markdown_table(t, fmt="{:.3f}") + "\n\n" + note
+
+
+def render_stage_shares(tables):
+    cov = _read(tables, "ecl_coverage_by_stage.csv")
+    if cov is None:
+        return PLACEHOLDER
+    base = cov[cov["scenario"] == "base"].sort_values("stage")
+    total = base["ead"].sum()
+    t = pd.DataFrame(
+        {
+            "Stage": base["stage"].astype(int).to_numpy(),
+            "EAD": [f"{v:,.0f}" for v in base["ead"]],
+            "Share of EAD": [_pct(v / total) for v in base["ead"]],
+        }
+    )
+    return markdown_table(t)
+
+
+def render_sicr_sensitivity(tables):
+    t = _read(tables, "sicr_sensitivity.csv")
+    if t is None:
+        return PLACEHOLDER
+    p = t.pivot_table(index="rel_threshold", columns="abs_threshold", values="stage2_share_ead") * 100
+    p.columns = [f"+{c * 100:.2f} pp" for c in p.columns]
+    p.index = [f"{r:.1f}x" for r in p.index]
+    out = p.reset_index().rename(columns={"index": "PD ratio at least"})
+    note = "Stage 2 share of performing exposure in %, by SICR thresholds."
+    return markdown_table(out, fmt="{:.2f}") + "\n\n" + note
+
+
+def render_monitoring(tables):
+    bt = _read(tables, "monitoring_backtest_by_quarter.csv")
+    fpsi = _read(tables, "monitoring_feature_psi.csv")
+    mig = _read(tables, "monitoring_stage_migration.csv")
+    if bt is None:
+        return PLACEHOLDER
+    counts = bt["flag"].value_counts()
+    parts = [
+        "PD backtest by quarter (quarter-end snapshots): "
+        + ", ".join(f"{int(counts.get(f, 0))} {f}" for f in ("green", "amber", "red"))
+        + f" out of {len(bt)} quarters."
+    ]
+    if fpsi is not None:
+        parts.append("Feature PSI:\n\n" + markdown_table(fpsi, fmt="{:.3f}"))
+    if mig is not None:
+        mig = mig.rename(columns={mig.columns[0]: "from stage"})
+        table = markdown_table(mig, fmt="{:.4f}")
+        parts.append("Stage migration between consecutive months (probabilities):\n\n" + table)
+    return "\n\n".join(parts)
+
+
+def _period(value):
+    """A readable month for a period label that is either a timestamp or a plain number."""
+    t = pd.to_datetime(value, errors="coerce")
+    return str(value) if pd.isna(t) else t.strftime("%Y-%m")
+
+
+def render_data_source(tables):
+    src = _read(tables, "data_source.csv")
+    if src is None:
+        return PLACEHOLDER
+    r = src.iloc[0]
+    text = (
+        f"Data source: **{r['source']}**. {int(r['loans']):,} loans, {int(r['loan_months']):,} loan-months, "
+        f"{_period(r['first_month'])} to {_period(r['last_month'])}."
+    )
+    if any(w in str(r["source"]).lower() for w in ("simulat", "synthetic")):
+        text += "\n\n> These results describe a simulation, not the mortgage market."
+    return text
+
+
+def render_split(tables):
+    sp = _read(tables, "pd_split.csv")
+    if sp is None:
+        return PLACEHOLDER
+    r = sp.iloc[0]
+    rows = [
+        ("Training period", f"{_period(r['train_first_period'])} to {_period(r['train_last_period'])}"),
+        ("Gap between training and validation (months)", f"{int(r['gap_periods'])}"),
+        ("Out-of-time period", f"{_period(r['oot_first_period'])} to {_period(r['oot_last_period'])}"),
+        ("Observations (training / out-of-time)", f"{int(r['n_train']):,} / {int(r['n_oot']):,}"),
+        ("12-month default rate (training / out-of-time)",
+         f"{r['train_default_rate']:.2%} / {r['oot_default_rate']:.2%}"),
+        ("Scorecard features", str(r["features"])),
+    ]
+    return markdown_table(pd.DataFrame(rows, columns=["Item", "Value"]))
+
+
 BLOCKS = {
+    "DATA_SOURCE": render_data_source,
+    "SPLIT": render_split,
+    "IV_TABLE": render_iv_table,
+    "LGD_BANDS": render_lgd_bands,
+    "STAGE_SHARES": render_stage_shares,
+    "SICR_SENSITIVITY": render_sicr_sensitivity,
+    "MONITORING": render_monitoring,
     "RESULTS": render_results_table,
     "PD_VALIDATION": render_pd_validation,
     "LIFETIME": render_lifetime,

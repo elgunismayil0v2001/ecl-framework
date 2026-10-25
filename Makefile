@@ -4,7 +4,7 @@ PERF ?= data/raw/sample_svcg_*.txt,data/raw/perf_*.txt
 FRED ?= data/raw/fred
 LAG ?= 0
 
-.PHONY: install test lint format sql-lint data-synthetic data-freddie quality eda pd lifetime ecl monitor report check sim clean
+.PHONY: install test lint format sql-lint data-synthetic data-freddie quality eda pd lifetime ecl monitor report check sim demo clean
 
 install:
 	pip install -r requirements.txt -r requirements-dev.txt
@@ -23,10 +23,10 @@ sql-lint:
 	sqlfluff lint sql --dialect duckdb
 
 data-synthetic:
-	python -m src.data --db $(DB) --synthetic
+	python -m src.data --db $(DB) --synthetic --source "synthetic test data"
 
 data-freddie:
-	python -m src.data --db $(DB) --orig "$(ORIG)" --perf "$(PERF)" --fred-dir "$(FRED)" --lag-months $(LAG)
+	python -m src.data --db $(DB) --orig "$(ORIG)" --perf "$(PERF)" --fred-dir "$(FRED)" --lag-months $(LAG) --source "Freddie Mac Single-Family Loan-Level Dataset"
 
 quality:
 	python -m src.data_quality --db $(DB)
@@ -54,7 +54,10 @@ check: lint test data-synthetic quality
 
 sim:
 	python -m src.simulate --outdir data/sim
-	python -m src.data --db $(DB) --orig "data/sim/orig_*.txt" --perf "data/sim/perf_*.txt" --fred-dir data/sim/fred
+	python -m src.data --db $(DB) --orig "data/sim/orig_*.txt" --perf "data/sim/perf_*.txt" --fred-dir data/sim/fred --source "simulated data (make sim)"
+
+demo: sim eda pd lifetime ecl monitor report
+	@echo "Demo finished. Commit reports/, README.md and docs/ to publish the results."
 
 clean:
 	rm -rf .pytest_cache .ruff_cache .coverage coverage.xml

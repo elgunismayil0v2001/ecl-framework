@@ -77,3 +77,18 @@ def test_reapplying_the_schema_removes_stale_derived_tables():
         ).fetchone()[0]
         assert exists == 0, table
     assert con.execute("SELECT COUNT(*) FROM loans").fetchone()[0] == 0
+
+
+def test_main_records_the_data_source_for_the_report():
+    import os
+    import tempfile
+
+    import pandas as pd
+
+    with tempfile.TemporaryDirectory() as d:
+        db = os.path.join(d, "test.duckdb")
+        code = data.main(["--db", db, "--synthetic", "--source", "unit test data", "--outdir", d])
+        table = pd.read_csv(os.path.join(d, "tables", "data_source.csv"))
+    assert code == 0
+    assert table.loc[0, "source"] == "unit test data"
+    assert table.loc[0, "loans"] == 300 and table.loc[0, "loan_months"] == 10800

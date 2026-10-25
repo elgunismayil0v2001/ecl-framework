@@ -16,8 +16,18 @@ from src.woe import WoEBinner
 
 
 class Scorecard:
-    def __init__(self, features, max_bins=10, min_bin_share=0.01, iv_min=0.02, C=1.0, monotonic=True):
+    def __init__(
+        self,
+        features,
+        max_bins=10,
+        min_bin_share=0.01,
+        iv_min=0.02,
+        C=1.0,
+        monotonic=True,
+        non_monotonic_features=(),
+    ):
         self.features = list(features)
+        self.non_monotonic_features = set(non_monotonic_features)
         self.max_bins = max_bins
         self.min_bin_share = min_bin_share
         self.iv_min = iv_min
@@ -28,7 +38,8 @@ class Scorecard:
         y = df[target_col].astype(int).to_numpy()
         self.binners_, self.dropped_ = {}, {}
         for f in self.features:
-            binner = WoEBinner(self.max_bins, self.min_bin_share, self.monotonic).fit(df[f], y)
+            monotonic = self.monotonic and f not in self.non_monotonic_features
+            binner = WoEBinner(self.max_bins, self.min_bin_share, monotonic).fit(df[f], y)
             if binner.iv_ < self.iv_min:
                 self.dropped_[f] = f"IV {binner.iv_:.3f} below {self.iv_min}"
             else:

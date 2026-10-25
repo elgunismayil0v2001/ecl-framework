@@ -1,11 +1,11 @@
 model,metric,value,rule,passed
-scorecard,gini,0.5045355180360138,>= 0.3,True
-scorecard,ks,0.3519957102695821,>= 0.2,True
-scorecard,calibration_rel_error,0.1723124101960396,<= 0.15,False
-scorecard,rank_order_corr,0.8787878787878788,>= 0.9,False
-scorecard,psi_train_vs_test,0.11997255953509099,<= 0.25,True
-benchmark,gini,0.4809987301092047,>= 0.3,True
-benchmark,ks,0.3544650560633252,>= 0.2,True
-benchmark,calibration_rel_error,0.34482095254784295,<= 0.15,False
-benchmark,rank_order_corr,0.9878787878787878,>= 0.9,True
-benchmark,psi_train_vs_test,0.586272830470554,<= 0.25,False
+scorecard,gini,0.5066771470056481,>= 0.3,True
+scorecard,ks,0.36010091926805976,>= 0.2,True
+scorecard,calibration_rel_error,0.1275190008908309,<= 0.15,True
+scorecard,rank_order_corr,0.9030303030303028,>= 0.9,True
+scorecard,psi_train_vs_test,0.08818698977837422,<= 0.25,True
+benchmark,gini,0.4899399358739176,>= 0.3,True
+benchmark,ks,0.3539189406760685,>= 0.2,True
+benchmark,calibration_rel_error,0.3320717874664,<= 0.15,False
+benchmark,rank_order_corr,0.9636363636363635,>= 0.9,True
+benchmark,psi_train_vs_test,0.5739725256676227,<= 0.25,False

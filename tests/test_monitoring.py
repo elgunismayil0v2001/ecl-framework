@@ -88,17 +88,19 @@ def test_backtest_is_green_for_calibrated_and_red_for_biased_pds():
         }
     )
     df = add_quarter(df)
-    good = backtest_by_period(df, "pd_12m", "default_12m", "quarter")
+    good = backtest_by_period(df, "pd_12m", "default_12m", "quarter", default_correlation=0.0)
     assert len(good) == 8
     assert (good["flag"] != "red").all()
-    biased = backtest_by_period(df.assign(pd_12m=df["pd_12m"] * 0.5), "pd_12m", "default_12m", "quarter")
+    half = df.assign(pd_12m=df["pd_12m"] * 0.5)
+    biased = backtest_by_period(half, "pd_12m", "default_12m", "quarter", default_correlation=0.0)
     assert (biased["flag"] == "red").all()
     assert (biased["z"] > 0).all()  # under-prediction: more observed than expected
+    assert (biased["rel_error"] > 0.5).all()
 
 
 def test_backtest_columns_and_arithmetic():
     df = pd.DataFrame({"q": ["a"] * 4, "p": [0.1, 0.1, 0.2, 0.2], "y": [0, 1, 0, 0]})
-    t = backtest_by_period(df, "p", "y", "q").iloc[0]
+    t = backtest_by_period(df, "p", "y", "q", default_correlation=0.0).iloc[0]
     assert np.isclose(t["expected_defaults"], 0.6)
     assert t["observed_defaults"] == 1.0
     assert np.isclose(t["z"], 0.4 / np.sqrt(0.09 + 0.09 + 0.16 + 0.16))
@@ -157,3 +159,15 @@ def test_expected_drift_features_are_not_flagged_red():
     assert t.loc["months_on_book", "flag"] == "expected"  # a closed book ages by construction
     assert t.loc["credit_score", "flag"] == "red"
     assert t.loc["months_on_book", "psi"] > 1.0  # the PSI value is still reported
+
+
+def test_correlation_adjustment_shrinks_z_and_follows_the_variance_formula():
+    rng = np.random.default_rng(5)
+    p = rng.uniform(0.01, 0.08, 4000)
+    df = pd.DataFrame({"q": "a", "p": p, "y": rng.binomial(1, p * 1.3)})
+    t = backtest_by_period(df, "p", "y", "q", default_correlation=0.01).iloc[0]
+    sigma = np.sqrt(p * (1 - p))
+    var = (sigma**2).sum() + 0.01 * (sigma.sum() ** 2 - (sigma**2).sum())
+    assert np.isclose(t["z"], (df["y"].sum() - p.sum()) / np.sqrt(var))
+    assert abs(t["z"]) < abs(t["z_binomial"])
+    assert np.isclose(t["rel_error"], df["y"].sum() / p.sum() - 1)

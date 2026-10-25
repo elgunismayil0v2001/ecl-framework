@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 from src.gates import assert_gates, evaluate_pd_model
 from src.pd_model import Scorecard, apply_logit_shift, calibration_shift, points
@@ -86,3 +87,21 @@ def test_calibration_shift_matches_target_rate_and_keeps_ranking():
     shifted = apply_logit_shift(p, delta)
     assert np.isclose(shifted.mean(), 0.08, atol=1e-6)
     assert np.array_equal(np.argsort(p), np.argsort(shifted))
+
+
+def test_a_hump_shaped_age_effect_needs_non_monotone_bins():
+    rng = np.random.default_rng(12)
+    n = 60_000
+    age = rng.uniform(0, 100, n)
+    p = 1 / (1 + np.exp(-(-4.5 + 0.06 * np.minimum(age, 45) - 0.05 * np.maximum(age - 45, 0))))
+    df = pd.DataFrame({"months_on_book": age, "default": rng.binomial(1, p)})
+    train, test = df.iloc[:40_000], df.iloc[40_000:]
+    mono = Scorecard(["months_on_book"], iv_min=0.0).fit(train, "default")
+    free = Scorecard(["months_on_book"], iv_min=0.0, non_monotonic_features=("months_on_book",)).fit(
+        train, "default"
+    )
+    gini_free = gini(test["default"], free.predict_proba(test))
+    gini_mono = gini(test["default"], mono.predict_proba(test))
+    assert gini_free > gini_mono + 0.1
+    rates = free.bin_tables()["bad_rate"].to_numpy()
+    assert rates.argmax() not in (0, len(rates) - 1)  # the riskiest bin is in the middle: a hump
