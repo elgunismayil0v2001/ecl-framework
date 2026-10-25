@@ -1,4 +1,9 @@
-"""Lifetime PD: discrete-time hazard model, macro scenarios and PD term structure.
+"""Lifetime PD helpers: macro scenarios, hazard projection, cumulative PD, and a one-step hazard model.
+
+WARNING: `HazardModel` predicts default in the next month only. Delinquency rises one month at a time, so
+this probability is zero for a current loan and the model gives a lifetime PD that is far too low on real
+mortgage data. The pipelines use `src.rollrate.RollRateModel` instead; `HazardModel` is kept for
+portfolios where default can be reached in one step.
 
 The hazard model is a logistic regression on person-period data (one row per performing loan-month).
 It predicts the probability of defaulting in the next month given loan age, loan characteristics and
@@ -76,6 +81,8 @@ def make_scenarios(last_macro, horizon, shocks=None, ramp_months=12, hold_months
 
 def project_hazards(model, loans, macro_path, horizon=None):
     """Monthly default hazards (n_loans, horizon). Column k is the PD for month k + 1."""
+    if hasattr(model, "project"):  # multi-state models such as RollRateModel project their own hazards
+        return model.project(loans, macro_path, horizon)
     horizon = len(macro_path) if horizon is None else horizon
     base = loans.reset_index(drop=True)
     age0 = base["months_on_book"].to_numpy(dtype=float)

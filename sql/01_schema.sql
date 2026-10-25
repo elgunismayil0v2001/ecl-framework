@@ -1,3 +1,22 @@
+-- Start from a clean database: drop everything derived from the raw tables, so no stale results remain
+-- from an earlier run (for example a synthetic smoke test).
+DROP VIEW IF EXISTS staging;
+DROP TABLE IF EXISTS panel;
+DROP TABLE IF EXISTS panel_target;
+DROP TABLE IF EXISTS features;
+DROP TABLE IF EXISTS features_scoring;
+DROP TABLE IF EXISTS hazard_obs;
+DROP TABLE IF EXISTS lgd_data;
+DROP TABLE IF EXISTS scores_raw;
+DROP TABLE IF EXISTS scores;
+DROP TABLE IF EXISTS loan_ecl;
+DROP TABLE IF EXISTS ecl_by_scenario;
+DROP TABLE IF EXISTS ecl_weighted;
+DROP TABLE IF EXISTS vintage_default_rate;
+DROP TABLE IF EXISTS stage_migration;
+DROP TABLE IF EXISTS raw_orig;
+DROP TABLE IF EXISTS raw_perf;
+
 -- DuckDB. Simplified schema: map the columns below to the official Freddie Mac user guide.
 -- Raw files are pipe-delimited without headers, so name the columns explicitly when loading.
 

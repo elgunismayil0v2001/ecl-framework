@@ -7,6 +7,7 @@ import pytest
 duckdb = pytest.importorskip("duckdb")
 
 from src import data  # noqa: E402
+from src.data_quality import run_checks  # noqa: E402
 from src.freddie_schema import ORIG_COLUMNS, PERF_COLUMNS  # noqa: E402
 from src.lifetime_pipeline import run_lifetime  # noqa: E402
 
@@ -61,9 +62,9 @@ def test_lgd_data_uses_resolved_defaults_and_clips_to_unit_interval():
         with open(os.path.join(d, "sample_orig_2018.txt"), "w") as f:
             f.write("\n".join(_orig(x) for x in ("A", "B", "C", "D", "E")) + "\n")
         rows = [
-            _perf("A", "201901", "3", "09", "100000", "20000"),  # LGD 0.2
-            _perf("B", "201901", "3", "03", "100000", "150000"),  # loss above UPB: clipped to 1
-            _perf("C", "201901", "3", "02", "100000", "-5000"),  # gain: clipped to 0
+            _perf("A", "201901", "3", "09", "100000", "-20000"),  # v1 files: a loss is negative, LGD 0.2
+            _perf("B", "201901", "3", "03", "100000", "-150000"),  # loss above UPB: clipped to 1
+            _perf("C", "201901", "3", "02", "100000", "5000"),  # gain: clipped to 0
             _perf("D", "201901", "0", "01", "100000", "0"),  # prepaid, not a credit event
             _perf("E", "201901", "3", "09", "100000", ""),  # no loss reported
         ]
@@ -117,3 +118,29 @@ def test_run_lifetime_pipeline_writes_outputs_on_synthetic_data():
     assert any("macro" in n.lower() for n in result["notes"])
     assert result["lgd_model"] is None
     assert any("LGD model skipped" in n for n in result["notes"])
+
+
+def _load_v1_with_losses(loss):
+    """60 resolved defaults, all with the given loss value, in the v1 layout."""
+    from src.load_freddie import load_freddie
+
+    ids = [f"L{i:03d}" for i in range(60)]
+    with tempfile.TemporaryDirectory() as d:
+        with open(os.path.join(d, "sample_orig_2018.txt"), "w") as f:
+            f.write("\n".join(_orig(x) for x in ids) + "\n")
+        with open(os.path.join(d, "sample_svcg_2018.txt"), "w") as f:
+            f.write("\n".join(_perf(x, "201901", "3", "09", "100000", loss) for x in ids) + "\n")
+        con = duckdb.connect(":memory:")
+        data.apply_schema(con)
+        load_freddie(con, os.path.join(d, "sample_orig_*.txt"), os.path.join(d, "sample_svcg_*.txt"))
+        data.build_panel(con)
+        data.build_lifetime_data(con)
+    return con
+
+
+def test_wrong_loss_sign_is_caught_by_the_data_quality_check():
+    right = {c["check"]: c for c in run_checks(_load_v1_with_losses("-30000"))}
+    wrong = {c["check"]: c for c in run_checks(_load_v1_with_losses("30000"))}
+    assert right["lgd_mean_plausible"]["passed"]
+    assert abs(right["lgd_mean_plausible"]["value"] - 0.3) < 1e-6
+    assert not wrong["lgd_mean_plausible"]["passed"]

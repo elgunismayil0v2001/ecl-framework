@@ -52,21 +52,15 @@ def test_training_and_scoring_features_agree_on_shared_rows():
     assert mismatch == 0
 
 
-def test_write_scores_creates_scores_with_pd_at_first_observation():
+def test_write_scores_gives_the_pd_now_and_the_pd_with_a_clean_payment_history():
     con = _con()
     n = write_scores(con, ConstantModel())
     assert n == con.execute("SELECT COUNT(*) FROM features_scoring").fetchone()[0]
-    distinct_orig = con.execute(
-        "SELECT MAX(c) FROM (SELECT COUNT(DISTINCT pd_12m_orig) AS c FROM scores GROUP BY loan_id)"
-    ).fetchone()[0]
-    assert distinct_orig == 1
-    mismatch = con.execute(
-        """SELECT COUNT(*) FROM scores s
-           JOIN (SELECT loan_id, MIN(report_month) AS m FROM scores GROUP BY loan_id) f
-             ON s.loan_id = f.loan_id AND s.report_month = f.m
-           WHERE ABS(s.pd_12m - s.pd_12m_orig) > 1e-12"""
-    ).fetchone()[0]
-    assert mismatch == 0
+    # ConstantModel: PD = 0.02 + 0.001 * months in arrears, so the clean-history PD is always 0.02
+    wrong = "SELECT COUNT(*) FROM scores WHERE ABS(pd_12m_orig - 0.02) > 1e-12"
+    assert con.execute(wrong).fetchone()[0] == 0
+    assert con.execute("SELECT COUNT(*) FROM scores WHERE pd_12m < pd_12m_orig - 1e-12").fetchone()[0] == 0
+    assert con.execute("SELECT COUNT(*) FROM scores WHERE pd_12m > pd_12m_orig + 1e-12").fetchone()[0] > 0
 
 
 def test_staging_works_on_written_scores_and_rewriting_scores_is_safe():

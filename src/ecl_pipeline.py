@@ -20,8 +20,9 @@ from src.ecl_portfolio import (
     weighted_total,
 )
 from src.lgd import LGDModel
-from src.lifetime_pd import MACRO_COLS, HazardModel, make_scenarios
+from src.lifetime_pd import MACRO_COLS, make_scenarios
 from src.lifetime_pipeline import MIN_LGD_ROWS, load_hazard_sample, load_last_macro
+from src.rollrate import RollRateModel
 from src.staging import sicr_sensitivity
 
 PERFORMING_SQL = """
@@ -71,7 +72,7 @@ def load_weights(con):
     return dict(con.execute("SELECT scenario, weight FROM scenario_weights").fetchall())
 
 
-def run_checks(loan_ecl, weights):
+def run_checks(loan_ecl, weights, metrics=None):
     """Sanity checks on the results. Each value is True when the check passes."""
     cov = coverage_by_stage(loan_ecl, weights)
     w = cov[cov["scenario"] == "weighted"].set_index("stage")["coverage"]
@@ -81,6 +82,7 @@ def run_checks(loan_ecl, weights):
         "ecl_between_zero_and_lgd_times_ead": bool(
             ((loan_ecl["ecl"] >= -1e-9) & (loan_ecl["ecl"] <= loan_ecl["lgd"] * loan_ecl["ead"] + 1e-6)).all()
         ),
+        "all_three_stages_present": {1, 2, 3} <= set(w.index),
     }
     if {"downside", "base", "upside"} <= set(totals.index):
         checks["scenario_order_downside_base_upside"] = bool(
@@ -88,6 +90,9 @@ def run_checks(loan_ecl, weights):
         )
     if {1, 2, 3} <= set(w.index):
         checks["coverage_stage3_gt_stage2_gt_stage1"] = bool(w[3] > w[2] > w[1])
+    if metrics is not None and "base" in metrics:
+        density = metrics["base"]["rwa_density"]
+        checks["rwa_density_between_3_and_80_percent"] = bool(0.03 <= density <= 0.80)
     return checks
 
 
@@ -114,7 +119,7 @@ def run_ecl(
     if len(loans) == 0:
         raise RuntimeError("No loans with a balance at the reporting date")
 
-    hazard_model = HazardModel().fit(load_hazard_sample(con, max_rows, seed))
+    hazard_model = RollRateModel().fit(load_hazard_sample(con, max_rows, seed))
     lgd_df = con.execute("SELECT * FROM lgd_data").df()
     if len(lgd_df) >= MIN_LGD_ROWS:
         lgd_model = LGDModel().fit(lgd_df)
@@ -165,7 +170,7 @@ def run_ecl(
         "weighted_ecl": weighted_total(loan_ecl, weights),
         "metrics": metrics,
         "stress": stress,
-        "checks": run_checks(loan_ecl, weights),
+        "checks": run_checks(loan_ecl, weights, metrics),
         "weights": weights,
         "notes": notes,
         "n_loans": len(loans),

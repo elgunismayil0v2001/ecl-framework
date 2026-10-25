@@ -1,4 +1,5 @@
--- Person-period data for the discrete-time hazard model (lifetime PD).
+-- Person-period data for the lifetime PD model (roll rates between delinquency states).
+-- next_dpd_months is the delinquency state in the next month.
 -- One row per performing loan-month. default_next = 1 if the loan is 90+ DPD in the next month.
 -- Loans with no next month (prepaid or liquidated) are dropped, which treats prepayment as censoring.
 
@@ -17,6 +18,7 @@ SELECT
     m.unemployment,
     m.hpi_yoy,
     m.gdp_yoy,
+    n.dpd_months AS next_dpd_months,
     CASE WHEN n.dpd_months >= 3 THEN 1 ELSE 0 END AS default_next
 FROM panel t
 JOIN loans l ON l.loan_id = t.loan_id

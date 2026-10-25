@@ -10,7 +10,12 @@ duckdb = pytest.importorskip("duckdb")
 from src import data  # noqa: E402
 from src.data_quality import run_checks  # noqa: E402
 from src.eda import default_rate_by_band, make_figures, vintage_default_rate  # noqa: E402
-from src.freddie_schema import ORIG_COLUMNS, PERF_COLUMNS  # noqa: E402
+from src.freddie_schema import (  # noqa: E402
+    ORIG_COLUMNS,
+    ORIG_COLUMNS_V2,
+    PERF_COLUMNS,
+    PERF_COLUMNS_V2,
+)
 from src.load_freddie import load_freddie  # noqa: E402
 from src.load_macro import load_macro  # noqa: E402
 
@@ -117,7 +122,7 @@ def test_freddie_loader_cleans_fake_files():
         perf_glob = os.path.join(d, "sample_svcg_*.txt")
         counts = load_freddie(con, orig_glob, perf_glob)
 
-    assert counts == {"loans": 2, "performance_rows": 5}
+    assert counts == {"loans": 2, "performance_rows": 5, "layout": "v1"}
     f1 = con.execute("SELECT * FROM loans WHERE loan_id = 'F1'").fetchone()
     assert f1[1] == dt.date(2018, 2, 1)  # first payment 2018-03 minus one month
     assert f1[5] == 740
@@ -170,3 +175,57 @@ def test_macro_loader_fills_table_and_joins_into_features():
     assert share > 0.99
     rows = {c["check"]: c for c in run_checks(con)}
     assert rows["macro_coverage"]["passed"]
+
+
+def test_freddie_loader_reads_the_release_47_layout():
+    with tempfile.TemporaryDirectory() as d:
+        with open(os.path.join(d, "orig_2019Q1.txt"), "w") as f:
+            f.write(
+                _row(
+                    ORIG_COLUMNS_V2,
+                    credit_score="740",
+                    first_payment_date="201903",
+                    original_dti="35",
+                    original_upb="200000",
+                    original_ltv="80",
+                    original_interest_rate="4.5",
+                    property_state="CA",
+                    loan_identifier="F119Q1000001",
+                    original_loan_term="360",
+                )
+                + "\n"
+            )
+
+        def perf(period, status, zero="", removal="", loss=""):
+            return _row(
+                PERF_COLUMNS_V2,
+                loan_identifier="F119Q1000001",
+                period=period,
+                current_actual_upb="190000",
+                current_loan_delinquency_status=status,
+                zero_balance_code=zero,
+                zero_balance_removal_upb=removal,
+                actual_loss=loss,
+            )
+
+        rows = [
+            perf("201904", "00"),
+            perf("201905", "01"),
+            perf("201906", "03"),
+            perf("201907", "XX"),
+            perf("201908", "RA", zero="09", removal="100000", loss="20000"),
+        ]
+        with open(os.path.join(d, "perf_2019Q1.txt"), "w") as f:
+            f.write("\n".join(rows) + "\n")
+        con = duckdb.connect(":memory:")
+        data.apply_schema(con)
+        counts = load_freddie(con, os.path.join(d, "orig_*.txt"), os.path.join(d, "perf_*.txt"))
+        data.build_lgd_data(con)
+    assert counts == {"loans": 1, "performance_rows": 4, "layout": "v2"}
+    dpd = dict(con.execute("SELECT report_month, dpd_months FROM performance").fetchall())
+    assert dpd[dt.date(2019, 4, 1)] == 0 and dpd[dt.date(2019, 5, 1)] == 1
+    assert dpd[dt.date(2019, 6, 1)] == 3 and dpd[dt.date(2019, 8, 1)] == 3
+    loan = con.execute("SELECT loan_id, orig_date FROM loans").fetchone()
+    assert loan == ("F119Q1000001", dt.date(2019, 2, 1))
+    lgd = con.execute("SELECT lgd FROM lgd_data").fetchone()[0]
+    assert abs(lgd - 0.2) < 1e-9  # in this layout a positive loss is a loss

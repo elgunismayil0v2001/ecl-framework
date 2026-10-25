@@ -16,7 +16,7 @@ from src.woe import WoEBinner
 
 
 class Scorecard:
-    def __init__(self, features, max_bins=10, min_bin_share=0.05, iv_min=0.02, C=1.0, monotonic=True):
+    def __init__(self, features, max_bins=10, min_bin_share=0.01, iv_min=0.02, C=1.0, monotonic=True):
         self.features = list(features)
         self.max_bins = max_bins
         self.min_bin_share = min_bin_share

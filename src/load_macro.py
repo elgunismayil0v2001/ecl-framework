@@ -49,6 +49,17 @@ def build_macro_table(unemployment, hpi, gdp, scenario="base", lag_months=0):
     return table.dropna(how="all", subset=value_cols).reset_index(drop=True)
 
 
+def check_fred_files(fred_dir):
+    """Raise a clear error if one of the three FRED CSV files is missing."""
+    fred_dir = Path(fred_dir)
+    missing = [f"{sid}.csv" for sid in SERIES_IDS.values() if not (fred_dir / f"{sid}.csv").exists()]
+    if missing:
+        found = "folder does not exist"
+        if fred_dir.is_dir():
+            found = sorted(p.name for p in fred_dir.iterdir())[:10]
+        raise FileNotFoundError(f"Missing FRED files in {fred_dir}: {missing}. Files found: {found}")
+
+
 def load_macro(con, fred_dir, scenario="base", lag_months=0):
     fred_dir = Path(fred_dir)
     series = {

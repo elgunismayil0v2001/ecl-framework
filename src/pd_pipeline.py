@@ -29,6 +29,13 @@ DEFAULT_FEATURES = [
 ]
 
 
+MACRO_FEATURES = ["unemployment", "hpi_yoy", "gdp_yoy"]
+# The scorecard ranks borrowers. Macro variables stay out: with one macro path per calendar month they let
+# the model memorise the cycle (an overfit to a few dozen months), and they make the score drift over time.
+# The economy enters through the lifetime PD model and the scenarios.
+SCORECARD_FEATURES = [f for f in DEFAULT_FEATURES if f not in MACRO_FEATURES]
+
+
 def usable_features(df, features):
     """Features that exist and have at least one non-missing value (macro may be absent)."""
     return [f for f in features if f in df.columns and df[f].notna().any()]
@@ -46,7 +53,7 @@ def run_pd_models(
     scorecard_params=None,
 ):
     train, oot = time_based_split(df, time_col, oot_periods, gap_periods)
-    feats = usable_features(train, features or DEFAULT_FEATURES)
+    feats = usable_features(train, features or SCORECARD_FEATURES)
 
     scorecard = Scorecard(feats, **(scorecard_params or {})).fit(train, target_col)
     result = {
@@ -93,25 +100,29 @@ def load_training_frame(con):
 def write_scores(con, model, table="scores"):
     """Score every performing loan-month and write `scores` (pd_12m, pd_12m_orig).
 
-    pd_12m_orig is the PD at the first observation of each loan (proxy for PD at initial recognition).
+    pd_12m_orig is the PD of the same loan with a clean payment history (no arrears now or in the last
+    12 months), at its current age. It is the reference for the SICR rule: the PD can rise because the
+    loan is older (seasoning), which is not a deterioration, so comparing with the PD at the first
+    observation would put almost every loan in Stage 2.
     """
     df = con.execute("SELECT * FROM features_scoring").df()
+    clean = df.assign(dpd_months=0, max_dpd_last_12m=0)
     scored = pd.DataFrame(
-        {"loan_id": df["loan_id"], "report_month": df["report_month"], "pd_12m": model.predict_proba(df)}
+        {
+            "loan_id": df["loan_id"],
+            "report_month": df["report_month"],
+            "pd_12m": model.predict_proba(df),
+            "pd_12m_orig": model.predict_proba(clean),
+        }
     )
     con.execute("DROP VIEW IF EXISTS staging")
-    con.register("df_scores_raw", scored)
-    con.execute(
-        """CREATE OR REPLACE TABLE scores_raw AS
-           SELECT loan_id, CAST(report_month AS DATE) AS report_month, pd_12m FROM df_scores_raw"""
-    )
-    con.unregister("df_scores_raw")
+    con.register("df_scores", scored)
     con.execute(
         f"""CREATE OR REPLACE TABLE {table} AS
-            SELECT loan_id, report_month, pd_12m,
-                   FIRST_VALUE(pd_12m) OVER (PARTITION BY loan_id ORDER BY report_month) AS pd_12m_orig
-            FROM scores_raw"""
+            SELECT loan_id, CAST(report_month AS DATE) AS report_month, pd_12m, pd_12m_orig
+            FROM df_scores"""
     )
+    con.unregister("df_scores")
     return con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
 
 
@@ -131,18 +142,28 @@ def main(argv=None):
     ap.add_argument("--oot-periods", type=int, default=6)
     ap.add_argument("--gap-periods", type=int, default=12)
     ap.add_argument("--no-benchmark", action="store_true")
+    ap.add_argument(
+        "--with-macro", action="store_true", help="add macro variables to the scorecard (not advised)"
+    )
     ap.add_argument("--outdir", default="reports")
     ap.add_argument("--strict", action="store_true", help="exit with an error if a gate fails")
     args = ap.parse_args(argv)
 
     con = connect(args.db)
     df = load_training_frame(con)
-    result = run_pd_models(
-        df,
-        oot_periods=args.oot_periods,
-        gap_periods=args.gap_periods,
-        use_benchmark=not args.no_benchmark,
-    )
+    try:
+        result = run_pd_models(
+            df,
+            features=DEFAULT_FEATURES if args.with_macro else None,
+            oot_periods=args.oot_periods,
+            gap_periods=args.gap_periods,
+            use_benchmark=not args.no_benchmark,
+        )
+    except ValueError as e:
+        print(f"PD model could not be fitted: {e}")
+        print("Use real data with enough months and defaults (see data/README.md).")
+        print("Synthetic data has no link between features and defaults, so it cannot be used here.")
+        return 2
     print("Split:", result["split"])
     print("Features used:", result["features"])
 
@@ -154,6 +175,13 @@ def main(argv=None):
     scorecard.bin_tables().to_csv(out / "tables" / "pd_woe_bins.csv", index=False)
     print(scorecard.iv_table().to_string(index=False))
 
+    rows = [
+        {"model": name, "metric": metric, "value": r["value"], "rule": r["rule"], "passed": r["passed"]}
+        for name, report in result["reports"].items()
+        for metric, r in report.items()
+        if metric != "all_passed"
+    ]
+    pd.DataFrame(rows).to_csv(out / "tables" / "pd_validation.csv", index=False)
     for name, report in result["reports"].items():
         print(format_gate_report(name, report))
     if result["benchmark"] is not None:

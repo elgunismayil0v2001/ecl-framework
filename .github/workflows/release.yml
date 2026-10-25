@@ -20,7 +20,7 @@ jobs:
       - run: pip install -r requirements-dev.txt
       - run: pytest --cov=src --cov-report=term-missing
       - name: Package documentation and SQL
-        run: zip -r release-bundle.zip README.md docs sql
+        run: zip -r release-bundle.zip README.md CHANGELOG.md docs sql reports
       - uses: softprops/action-gh-release@v2
         with:
           files: release-bundle.zip

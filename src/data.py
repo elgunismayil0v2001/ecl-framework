@@ -8,8 +8,8 @@ Examples:
 import argparse
 from pathlib import Path
 
-from src.load_freddie import load_freddie
-from src.load_macro import load_macro
+from src.load_freddie import load_freddie, validate_inputs
+from src.load_macro import check_fred_files, load_macro
 from src.synthetic import make_loan_panel
 
 SQL_DIR = Path(__file__).resolve().parents[1] / "sql"
@@ -76,20 +76,26 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description="Build the loan database.")
     ap.add_argument("--db", default=str(DB_PATH))
     ap.add_argument("--synthetic", action="store_true", help="use synthetic data (smoke test)")
-    ap.add_argument("--orig", help="glob for Freddie Mac origination files")
-    ap.add_argument("--perf", help="glob for Freddie Mac performance files")
+    ap.add_argument("--orig", help="glob(s), comma separated, for Freddie Mac origination files")
+    ap.add_argument("--perf", help="glob(s), comma separated, for Freddie Mac performance files")
     ap.add_argument("--fred-dir", help="folder with UNRATE.csv, CSUSHPINSA.csv, GDPC1.csv")
     ap.add_argument("--lag-months", type=int, default=0, help="macro lag to avoid look-ahead")
     args = ap.parse_args(argv)
+
+    if not args.synthetic:
+        if not (args.orig and args.perf):
+            ap.error("use --synthetic, or both --orig and --perf")
+        *_, layout = validate_inputs(args.orig, args.perf)  # fail before the database is touched
+        print("Freddie Mac file layout:", layout)
+    if args.fred_dir:
+        check_fred_files(args.fred_dir)
 
     con = connect(args.db)
     apply_schema(con)
     if args.synthetic:
         load_synthetic(con)
-    elif args.orig and args.perf:
-        print(load_freddie(con, args.orig, args.perf))
     else:
-        ap.error("use --synthetic, or both --orig and --perf")
+        print(load_freddie(con, args.orig, args.perf))
     if args.fred_dir:
         print("macro rows:", load_macro(con, args.fred_dir, lag_months=args.lag_months))
     build_panel(con)

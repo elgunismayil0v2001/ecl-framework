@@ -1,10 +1,10 @@
 DB ?= ifrs9.duckdb
-ORIG ?= data/raw/sample_orig_*.txt
-PERF ?= data/raw/sample_svcg_*.txt
+ORIG ?= data/raw/sample_orig_*.txt,data/raw/orig_*.txt
+PERF ?= data/raw/sample_svcg_*.txt,data/raw/perf_*.txt
 FRED ?= data/raw/fred
 LAG ?= 0
 
-.PHONY: install test lint format sql-lint data-synthetic data-freddie quality eda pd lifetime ecl clean
+.PHONY: install test lint format sql-lint data-synthetic data-freddie quality eda pd lifetime ecl monitor report check sim clean
 
 install:
 	pip install -r requirements.txt -r requirements-dev.txt
@@ -42,6 +42,19 @@ lifetime:
 
 ecl:
 	python -m src.ecl_pipeline --db $(DB)
+
+monitor:
+	python -m src.monitoring_pipeline --db $(DB)
+
+report:
+	python -m src.report
+
+check: lint test data-synthetic quality
+	@echo "All checks passed"
+
+sim:
+	python -m src.simulate --outdir data/sim
+	python -m src.data --db $(DB) --orig "data/sim/orig_*.txt" --perf "data/sim/perf_*.txt" --fred-dir data/sim/fred
 
 clean:
 	rm -rf .pytest_cache .ruff_cache .coverage coverage.xml

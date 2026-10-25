@@ -1,5 +1,8 @@
 """Weight of evidence (WoE) binning with optional monotonic bad rate.
 
+Features with at most `max_bins` distinct values get one bin per value; other features start from
+equal-count bins. Bins below `min_bin_share` are merged into the neighbour with the closest bad rate.
+
 Convention: WoE = ln(share of bads / share of goods). A higher WoE means higher risk, so a logistic
 regression on WoE features should have positive coefficients.
 Counts are smoothed with `eps` so empty bins do not give infinite WoE.
@@ -10,7 +13,7 @@ from scipy.stats import spearmanr
 
 
 class WoEBinner:
-    def __init__(self, max_bins=10, min_bin_share=0.05, monotonic=True, eps=0.5):
+    def __init__(self, max_bins=10, min_bin_share=0.01, monotonic=True, eps=0.5):
         self.max_bins = max_bins
         self.min_bin_share = min_bin_share
         self.monotonic = monotonic
@@ -50,6 +53,11 @@ class WoEBinner:
     def _initial_edges(self, xv):
         if len(xv) == 0:
             return np.array([])
+        values = np.unique(xv)
+        if len(values) <= self.max_bins:
+            # few distinct values (for example months in arrears): one bin per value. Equal-count bins
+            # would merge a rare value such as 60 days late into the 98% of loans that are current.
+            return (values[:-1] + values[1:]) / 2.0
         probs = np.linspace(0, 1, self.max_bins + 1)[1:-1]
         return np.unique(np.quantile(xv, probs))
 

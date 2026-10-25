@@ -13,7 +13,7 @@ def _table_exists(con, name):
     return _scalar(con, sql) > 0
 
 
-def run_checks(con, max_missing_share=0.05):
+def run_checks(con, max_missing_share=0.05, min_lgd_rows=50):
     checks = []
 
     def add(name, value, passed, detail=""):
@@ -100,6 +100,15 @@ def run_checks(con, max_missing_share=0.05):
             )
             cover = 0.0 if cover is None else float(cover)
             add("macro_coverage", round(cover, 4), cover >= 0.90, "share of features rows with macro data")
+
+    if _table_exists(con, "lgd_data") and _scalar(con, "SELECT COUNT(*) FROM lgd_data") >= min_lgd_rows:
+        mean_lgd = float(_scalar(con, "SELECT AVG(lgd) FROM lgd_data"))
+        add(
+            "lgd_mean_plausible",
+            round(mean_lgd, 4),
+            0.05 <= mean_lgd <= 0.80,
+            "mean realised LGD of resolved defaults; a value near 0 usually means the loss sign is wrong",
+        )
 
     return checks
 

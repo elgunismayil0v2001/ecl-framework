@@ -65,3 +65,15 @@ def test_staging_assigns_stage_3_to_all_defaulted_rows():
            WHERE (p.in_default = 1) <> (s.stage = 3)"""
     ).fetchone()[0]
     assert mismatch == 0
+
+
+def test_reapplying_the_schema_removes_stale_derived_tables():
+    con, _ = _build()
+    assert con.execute("SELECT COUNT(*) FROM features").fetchone()[0] > 0
+    data.apply_schema(con)
+    for table in ("panel", "panel_target", "features", "features_scoring"):
+        exists = con.execute(
+            f"SELECT COUNT(*) FROM information_schema.tables WHERE table_name = '{table}'"
+        ).fetchone()[0]
+        assert exists == 0, table
+    assert con.execute("SELECT COUNT(*) FROM loans").fetchone()[0] == 0

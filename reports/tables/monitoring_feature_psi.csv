@@ -1,0 +1,12 @@
+feature,psi,flag
+hpi_yoy,13.213491606968901,expected
+balance_ratio,12.433626884032602,expected
+months_on_book,12.15012020435966,expected
+unemployment,11.933817735410416,expected
+gdp_yoy,11.65309487347389,expected
+orig_rate,0.33479492551302764,red
+credit_score,0.040229089904534256,green
+orig_ltv,0.0030316139806263586,green
+orig_dti,0.0022468819351623656,green
+dpd_months,0.0,green
+max_dpd_last_12m,0.0,green

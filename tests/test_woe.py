@@ -70,3 +70,23 @@ def test_transform_handles_unseen_extreme_values():
     b = WoEBinner().fit(df["ltv"], df["default"])
     out = b.transform(pd.Series([-1e9, 1e9]))
     assert np.all(np.isfinite(out))
+
+
+def test_rare_delinquency_states_keep_their_own_bins_and_information():
+    rng = np.random.default_rng(7)
+    n = 200_000
+    state = rng.choice([0, 1, 2], n, p=[0.983, 0.012, 0.005])
+    bad_rate = np.array([0.026, 0.29, 0.70])[state]
+    y = rng.binomial(1, bad_rate)
+    b = WoEBinner().fit(state.astype(float), y)
+    assert len(b.table_) >= 2
+    assert b.iv_ > 0.3  # a 30 and 60 days late loan is far riskier than a current one
+    assert b.transform(pd.Series([2.0]))[0] > b.transform(pd.Series([0.0]))[0]
+
+
+def test_low_cardinality_features_start_with_one_bin_per_value():
+    rng = np.random.default_rng(8)
+    x = rng.choice([0.0, 1.0, 2.0, 3.0], 50_000, p=[0.4, 0.3, 0.2, 0.1])
+    y = rng.binomial(1, np.array([0.01, 0.02, 0.04, 0.08])[x.astype(int)])
+    b = WoEBinner(monotonic=False).fit(x, y)
+    assert len(b.table_) == 4

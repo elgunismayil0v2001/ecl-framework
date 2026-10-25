@@ -14,11 +14,11 @@ from src.ead import ead_paths
 from src.lgd import LGDModel, lgd_by_band
 from src.lifetime_pd import (
     MACRO_COLS,
-    HazardModel,
     lifetime_curves,
     make_scenarios,
     scenario_ordering_ok,
 )
+from src.rollrate import RollRateModel
 
 LOANS_NOW_SQL = """
 SELECT s.loan_id, s.report_month, s.months_on_book, s.dpd_months, s.credit_score, s.orig_ltv,
@@ -81,7 +81,7 @@ def run_lifetime(con, outdir="reports", horizon=120, max_rows=1_000_000, max_loa
     notes = []
 
     hazard_df = load_hazard_sample(con, max_rows, seed)
-    model = HazardModel().fit(hazard_df)
+    model = RollRateModel().fit(hazard_df)
     loans = con.execute(LOANS_NOW_SQL).df()
     if len(loans) > max_loans:
         loans = loans.sample(max_loans, random_state=seed)
@@ -91,12 +91,13 @@ def run_lifetime(con, outdir="reports", horizon=120, max_rows=1_000_000, max_loa
         notes.append("No macro data: all scenarios use the same flat macro values")
         last_macro = dict.fromkeys(MACRO_COLS, 0.0)
     if not any(c in model.features_ for c in MACRO_COLS):
-        notes.append("Hazard model has no macro features, so scenario curves will be identical")
+        notes.append("The lifetime PD model has no macro features, so scenario curves will be identical")
 
     curves = lifetime_curves(model, loans, make_scenarios(last_macro, horizon), horizon)
     curves.to_csv(out / "tables" / "lifetime_pd_curves.csv", index=False)
     _plot_curves(curves, out / "figures" / "lifetime_pd_curves.png")
-    model.coef_.to_csv(out / "tables" / "hazard_coefficients.csv", header=["coefficient_per_sd"])
+    by_state = pd.DataFrame({f"from_state_{k}": v for k, v in model.coef_by_state_.items()})
+    by_state.to_csv(out / "tables" / "hazard_coefficients.csv")
 
     remaining = loans["term_months"] - loans["months_on_book"]
     ead = ead_paths(loans["current_upb"], loans["orig_rate"], remaining, horizon, cpr)
@@ -136,7 +137,7 @@ def main(argv=None):
     args = ap.parse_args(argv)
 
     result = run_lifetime(connect(args.db), args.outdir, args.horizon, args.max_rows, cpr=args.cpr)
-    print("Hazard model coefficients (per standard deviation):")
+    print("Roll-rate model coefficients, current -> worse (per standard deviation):")
     print(result["hazard_model"].coef_.round(3).to_string())
     last = result["curves"][result["curves"]["month"] == args.horizon].set_index("scenario")["cum_pd"]
     print(f"Cumulative PD at {args.horizon} months:", (last * 100).round(2).to_dict())

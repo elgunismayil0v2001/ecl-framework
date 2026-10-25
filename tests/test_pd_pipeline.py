@@ -36,3 +36,26 @@ def test_gate_report_formatting_lists_each_metric():
     )
     text = format_gate_report("scorecard", result["reports"]["scorecard"])
     assert "gini" in text and "psi_train_vs_test" in text and "PASS" in text
+
+
+def test_default_scorecard_features_exclude_macro_variables():
+    rng = np.random.default_rng(0)
+    n = 6000
+    score = rng.normal(700, 50, n)
+    df = pd.DataFrame(
+        {
+            "t": np.repeat(np.arange(12), n // 12),
+            "credit_score": score,
+            "orig_ltv": rng.uniform(40, 97, n),
+            "orig_dti": rng.uniform(10, 50, n),
+            "unemployment": rng.normal(5, 1, n),
+            "hpi_yoy": rng.normal(0.03, 0.02, n),
+            "gdp_yoy": rng.normal(0.02, 0.01, n),
+        }
+    )
+    df["y"] = rng.binomial(1, 1 / (1 + np.exp(-(-3.5 - 0.012 * (score - 700)))))
+    result = run_pd_models(
+        df, time_col="t", target_col="y", oot_periods=2, gap_periods=0, use_benchmark=False
+    )
+    assert not {"unemployment", "hpi_yoy", "gdp_yoy"} & set(result["features"])
+    assert "credit_score" in result["features"]
